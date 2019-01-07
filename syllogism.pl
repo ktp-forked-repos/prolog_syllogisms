@@ -1,6 +1,9 @@
 %% syllogism
 %% definite clause grammer and meta-interpreter exercise.
 
+:- include(arguments).
+:- dynamic cl/3.
+
 %% step 1
 opposite([A, B, is | T], [some, B, is, not | T]):-
   A = every; A = a,
@@ -25,7 +28,7 @@ noun --> [_].
 */
 
 %% step 2.2
-syllogism([ (B :- C) ]) --> [a], noun(B), [is], determinant, noun(C).
+syllogism([ (C :- B) ]) --> [a], noun(B), [is], determinant, noun(C).
 syllogism([ (false :- B, C) ]) --> [no], noun(B), [is], determinant, noun(C).
 syllogism([ (B1 :- true), (C1 :- true) ]) --> [some], [B], [is], determinant, [C], {combine1(B, C, B1, C1)}.
 syllogism([ (B1 :- true), (false :- C1) ]) --> [some], [B], [is], [not], determinant, [C], {combine2(B, C, B1, C1)}.
@@ -47,6 +50,120 @@ tr(X, B):-
   B =.. [X, _V].
 
 %% step 3
+translate(N):-
+  p(N, L1),
+  p(N, L2),
+  L1 \= L2, !,
+  c(N, L),
+  opposite(L, L3),
+  phrase(syllogism(Clause1), L1),
+  phrase(syllogism(Clause2), L2),
+  phrase(syllogism(Clause3), L3),
+  assertall(N, Clause1),
+  assertall(N, Clause2),
+  assertall(N, Clause3).
+
+%% step 4
+eval(_N, true):- !.
+eval(N, (H1, H2)):-
+  !,
+  eval(N, H1),
+  eval(N, H2).
+eval(N, H):-
+  clause(cl(N, H, B), true),
+  eval(N, B).
+
+/*
+| ?- clause(cl(1, bird(X), B),L).
+B = robin(_A),
+L = true ? ;
+no
+
+| ?- clause(cl(1, robin(X), B),true).
+X = some(robin,reptile),
+B = true ? ;
+no
+*/
+
+valid(N):-
+  eval(N, false).
+
+invalid(N):-
+  cl(N, _, _),
+  \+ eval(N, false).
+
+%% step 5
+show_syllogism(N):-
+  p(N, P1),
+  p(N, P2),
+  P1 \= P2, !,
+  c(N, C),
+  write('   '),
+  show_list(P1),
+  write('   '),
+  show_list(P2),
+  write('=>'),
+  nl,
+  write('   '),
+  show_list(C).
+
+show_list([H|T]):-
+  write(H),
+  write(' '),
+  show_list(T).
+show_list([]):-
+  nl.
+%% *************** utilities ********************
+
+% the following is built-in in some Prologs but not Sicstus
+
+forall(C1,C2) :- \+ (call(C1), \+ call(C2)).
+
+
+% the following can be used by your test/1 program to display the clauses 
+% you generate for the N'th syllogism stored as facts of the form cl(N,Clause).
+
+
+show_clauses(N) :-
+  forall(
+    cl(N,H,B),
+    (
+      write('   '),
+      write((H:-B)),
+      write('.'),
+      nl
+    )
+  ).
+
+/* The above could also be written using format/2 (see manual)
+
+show_clauses(N) :-
+  forall(cl(N,H,B),
+         format("   ~w.~n",[(H:-B)] ).
+
+*/
+
+
+% The following can be used to assert each clause (H:-B) of the list of clauses 
+% produced by parsing a syllogism sentence list number N  as facts 
+% of the form cl(N,H,B)
+
+assertcl(N,(H:-B)) :- !, assert(cl(N,H,B)).
+assertcl(N,H) :- assert(cl(N,H,true)). 
+
+assertall(_,[]).  
+assertall(N,[C|Cs]) :-
+  assertcl(N,C),
+  assertall(N,Cs).
+
+
+% You might find the following useful
+
+writeL([]).
+writeL([W|Ws]) :-
+  write(W),
+  write(' '),
+  writeL(Ws).
 
 
 %% ***************** test *********************
@@ -72,3 +189,4 @@ test('8', true(Opp == [a,banker,is,greedy])):-
 :- end_tests(opposite).
 ?- run_tests(opposite).
 */
+
